@@ -1,4 +1,5 @@
 from Crypto.Cipher import AES
+from pybloom import BloomFilter
 from os import urandom
 import hashlib, hmac, base64
 #constructor takes as argument an unencrypted document, encrypts and 
@@ -73,7 +74,7 @@ class DocIndex:
 #fix this to make it safe
     self.docId = cryptdoc.get_doc_id()
     self.cryptDoc = cryptdoc
-
+    self.index = None
     self.secureIndex = self.make_index()
   def get_doc_id(self):
     return self.cryptDoc.get_doc_id()
@@ -88,8 +89,19 @@ class DocIndex:
 #dont want to store the keys nor the word list in the index, only use them 
 #to create the indexi
   def build_index(self, privKeysTup, document):
+#can not be a member var, also can't in clude word count
     docWordList = self.make_word_set(document)
+
+
     print str(docWordList)
+
+#this maybe should be done in constructor, max value for all elements in
+#the collection? what I am doing here gives away length of document I think
+#right?
+    self.index = BloomFilter(capacity=len(docWordList)*4, error_rate=0.001) 
+#^THINK ABOUT HOW TO GET THIS RIGHT OF MAKING IT JUST A BIT BIGGER THAN NEED BE
+#but no maybe all bloom filters need to be size of largest doc
+    numWords = len(docWordList)
 #this is just to keep the copies around to test for right behavior
     finalmacs = []
     hmacs_rnd1 = [hmac.new(key, '', hashlib.sha1) for key in privKeysTup]
@@ -106,7 +118,9 @@ class DocIndex:
                             mac_copies_rnd1, [word] * len(mac_copies_rnd1))
                 
       print "Updated Copies", updated_copies_rnd1 
- 
+
+#digest or HEXDIGEST? DIGEST HERE IS BETTER BUT HEXDIGEST BETTER FOR PUTTING
+#IN BF? 
       trpdrs = [obj.digest() for obj in updated_copies_rnd1]
       print trpdrs
 #rnd 2 can't benefit from copying bc each call uses a different key
@@ -120,14 +134,14 @@ class DocIndex:
                                 hmacs_rnd2, [str(doc_identifier)] * len(hmacs_rnd2))
 #!!!!!!!!!!!!!!!!!!!!FIX!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!doc_identifier
 
-      codewrds = [obj.digest() for obj in updated_copies_rnd2]
+      codewrds = [obj.hexdigest() for obj in updated_copies_rnd2]
       print "HERES TO PUT IN BLOOM FILTER", codewrds               
      #this is to test if new mac objs all the time, seem reusing address and not reusing object which is what
      #i want but if I save these objs to finalmacs ill get an answer on that hypothesis one way or the other
 
       finalmacs.extend(updated_copies_rnd1)
 
-      self.add_word_to_index(["test"] * 20)    
+      self.add_word_to_index(codewrds)    
 #probably super bad form what im doing her
   def _hmac_update(self, macobj, string):
     print "AAAAAAAAAAAAAAAAAAAAAAA", macobj
@@ -140,8 +154,25 @@ class DocIndex:
                         for word in document.lower().split()
                       ]))
 
-  def add_word_to_index(self, macVals):
-    pass
+  def add_word_to_index(self, codewords):
+    if self.index is None:
+      raise Exception('Path not yet implemented')
+    else:
+      for word in codewords:
+        self.index.add(word)
+  
+  def search_index(self, word, privKeysTup):
+    hmacs_rnd1 = [hmac.new(key, '', hashlib.sha1) for key in privKeysTup]
+    doc_identifier = self.get_doc_id()
+    updated_copies_rnd1 =  map(self._hmac_update, 
+                            hmacs_rnd1, [word] * len(hmacs_rnd1))
+    trpdrs = [obj.digest() for obj in updated_copies_rnd1]
+    hmacs_rnd2 = [hmac.new(key, '', hashlib.sha1) for key in trpdrs]
+    updated_copies_rnd2 = map(self._hmac_update, hmacs_rnd2, 
+                             [str(doc_identifier)] * len(hmacs_rnd2))
+    codewrds = [obj.hexdigest() for obj in updated_copies_rnd2]
+    return all([(wrd in self.index) for wrd in codewrds])
+
   def make_index(self):
     return 1
 

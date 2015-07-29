@@ -1,10 +1,9 @@
 from documents import EncryptedDoc, DocIndex
-from pybloom import BloomFilter
 from Crypto.Cipher import AES
 import re, hashlib
 
 
-bf = BloomFilter(capacity=1000, error_rate=0.001)
+#bf = BloomFilter(capacity=1000, error_rate=0.001)
 
 
 
@@ -29,3 +28,4 @@ print pd
 idx = DocIndex(ed)
 idx.build_index(("abcd","edfg","aaaa"),document)
 print "encrypted document", idx.get_document().decrypt_and_return(key)
+print idx.search_index("certified", ("abcd", "edfg","aaaa"))
