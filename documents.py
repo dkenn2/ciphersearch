@@ -83,69 +83,41 @@ class DocIndex:
 #does it not matter bc its encrypted?
   def get_document(self):
     return self.cryptDoc
+#check if passing to function makes a copy...i think this
+#refactor to function wont change memory use though
+  def _create_trapdoor(self, orig_macs, word):
+    mac_copies_rnd1 = [obj.copy() for obj in orig_macs]
+    updated_copies_rnd1 =  map(self._hmac_update,
+                            mac_copies_rnd1, [word] * len(mac_copies_rnd1))
+    return [obj.digest() for obj in updated_copies_rnd1]
 
-  def _create_trapdoor(self, priv_key, search_word):
-    pass
   def _create_codeword(self, trapdoor, doc_id):
-    pass
+
+    #rnd 2 can't benefit from copying bc each call uses a different key
+    hmacs_rnd2 = [hmac.new(key, '', hashlib.sha1) for key in trapdoor]
+    updated_copies_rnd2 =  map(self._hmac_update,
+                                hmacs_rnd2, [str(doc_id)] * len(hmacs_rnd2))
+    return [obj.hexdigest() for obj in updated_copies_rnd2]
+
 #for now this is a member function but it really should be called not from
 #within the class but only by the user because the class is not being made
 #responsible for finding the keys...the user should supply the keys...also
 #dont want to store the keys nor the word list in the index, only use them 
 #to create the indexi
-  def build_index(self, privKeysTup, doc_word_list):
+  def build_index(self, privKeysTup, doc_word_list, length):
 #can not be a member var, also can't in clude word count
 
     print "yo"
-    #print str(doc_word_list)
 
-#this maybe should be done in constructor, max value for all elements in
-#the collection? what I am doing here gives away length of document I think
-#right?
-    self.index = BloomFilter(capacity=len(doc_word_list)*4, error_rate=0.001) 
-#^THINK ABOUT HOW TO GET THIS RIGHT OF MAKING IT JUST A BIT BIGGER THAN NEED BE
-#but no maybe all bloom filters need to be size of largest doc
-    numWords = len(doc_word_list)
-#this is just to keep the copies around to test for right behavior
-    finalmacs = []
+    self.index = BloomFilter(capacity=length, error_rate=0.001) 
     hmacs_rnd1 = [hmac.new(key, '', hashlib.sha1) for key in privKeysTup]
     doc_identifier = self.get_doc_id()
-    #print "Original Hmacs", hmacs_rnd1
+ 
     for word in doc_word_list:
-      #print "Now Processing: ", word, "\n"
-      trpdrs = []
-      codewrds = []
-      mac_copies_rnd1 = [obj.copy() for obj in hmacs_rnd1]
-      #print "Initial Copies", mac_copies_rnd1 
-      
-      updated_copies_rnd1 =  map(self._hmac_update, 
-                            mac_copies_rnd1, [word] * len(mac_copies_rnd1))
-                
-      #print "Updated Copies", updated_copies_rnd1 
-
-#digest or HEXDIGEST? DIGEST HERE IS BETTER BUT HEXDIGEST BETTER FOR PUTTING
-#IN BF? 
-      trpdrs = [obj.digest() for obj in updated_copies_rnd1]
-      #print trpdrs
-#rnd 2 can't benefit from copying bc each call uses a different key
-      hmacs_rnd2 = [hmac.new(key, '', hashlib.sha1) for key in trpdrs]
-      #print "RND 2 HMACS)", hmacs_rnd2
-
-
-#THIS IS VERY BAD HOW IM JUST CASTING AN INT TO A STRING HERE MAYBE HAVE THE DOCID BE A STRING?
-#OR YOU GET A HASH OF THE DOC ID?
-      updated_copies_rnd2 =  map(self._hmac_update, 
-                                hmacs_rnd2, [str(doc_identifier)] * len(hmacs_rnd2))
-#!!!!!!!!!!!!!!!!!!!!FIX!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!doc_identifier
-
-      codewrds = [obj.hexdigest() for obj in updated_copies_rnd2]
-      #print "HERES TO PUT IN BLOOM FILTER", codewrds               
-     #this is to test if new mac objs all the time, seem reusing address and not reusing object which is what
-     #i want but if I save these objs to finalmacs ill get an answer on that hypothesis one way or the other
-
-      finalmacs.extend(updated_copies_rnd1)
-
+      trpdrs = self._create_trapdoor(hmacs_rnd1, word)
+      codewrds = self._create_codeword(trpdrs, doc_identifier)
       self.add_word_to_index(codewrds)    
+
 #probably super bad form what im doing her
   def _hmac_update(self, macobj, string):
     #print "AAAAAAAAAAAAAAAAAAAAAAA", macobj
