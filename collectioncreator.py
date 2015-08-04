@@ -32,10 +32,9 @@ class CollectionCreator(object):
     return most_bytes / 8 
 
   def parse_directory(self, doc_root):
-#store in this class and not in doc collection class to hide info
-    print self.bf_size
+    print "Now building secure indexes for documents in .\\" + doc_root
     self.bf_size =  self.calc_bf_size(doc_root)
-    print self.bf_size
+    print "Bloom filter size is ",  self.bf_size, "bits"
     self.next_collection_id += 1
     collection = DocCollection(self.next_collection_id)
 #what if collection creation fails? put this in a finally type thing?
@@ -51,7 +50,11 @@ class CollectionCreator(object):
         idx.build_index(self.ind_key,doc_word_list, self.bf_size)
         collection.add_doc(idx)
     return collection  
-    
+
+#pass collection to this class from main because this class
+#is responsible for managing keys
+  def search_coll(self, collection, word):
+      return collection.search_collection(word, self.ind_key)
 
 #DOES THIS CLASS NEED TO KNOW ANYTHING ELSE TO SEARCH BLOOM FILTER?
 #I DONT THINK SO BUT
@@ -68,11 +71,18 @@ class DocCollection(object):
     self.collection_id = collection_id
     self.doc_count = 0
     self.doc_dict = {}
-  def add_doc(self, secure_index):
-    self.doc_dict[++self.doc_count] = secure_index
-  def get_doc(self, doc_id):
-    if doc_id > self.doc_count:
-      raise KeyError
-    return self.doc_dict[doc_id]
 
+  def add_doc(self, secure_index):
+    self.doc_count += 1
+    self.doc_dict[self.doc_count] = secure_index
+    print "Finished creating index for document ", self.doc_count
+  def search_collection(self, word, privkeys):
+    idx_list = []
+    for doc_id in self.doc_dict.keys():
+     print "Searching Document ",  doc_id
+     if self.doc_dict[doc_id].search_index(word, privkeys):
+       idx_list.append(self.doc_dict[doc_id])
+       print" \'" + word + "\' in document"
+    return idx_list
+      
     

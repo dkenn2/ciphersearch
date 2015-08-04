@@ -107,7 +107,7 @@ class DocIndex:
   def build_index(self, privKeysTup, doc_word_list, length):
 #can not be a member var, also can't in clude word count
 
-    print "yo"
+
 
     self.index = BloomFilter(capacity=length, error_rate=0.001) 
     hmacs_rnd1 = [hmac.new(key, '', hashlib.sha1) for key in privKeysTup]
