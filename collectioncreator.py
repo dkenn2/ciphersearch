@@ -54,8 +54,11 @@ class CollectionCreator(object):
 #pass collection to this class from main because this class
 #is responsible for managing keys
   def search_coll(self, collection, word):
-      return collection.search_collection(word, self.ind_key)
-
+      plaintext_list = []
+      encrypted_list = collection.search_collection(word, self.ind_key)
+      for document in encrypted_list:
+        plaintext_list.append(document.decrypt_and_return(self.enc_key))
+      return plaintext_list
 #DOES THIS CLASS NEED TO KNOW ANYTHING ELSE TO SEARCH BLOOM FILTER?
 #I DONT THINK SO BUT
 class DocCollection(object):
@@ -76,13 +79,14 @@ class DocCollection(object):
     self.doc_count += 1
     self.doc_dict[self.doc_count] = secure_index
     print "Finished creating index for document ", self.doc_count
+
   def search_collection(self, word, privkeys):
-    idx_list = []
+    enc_doc_list = []
     for doc_id in self.doc_dict.keys():
      print "Searching Document ",  doc_id
      if self.doc_dict[doc_id].search_index(word, privkeys):
-       idx_list.append(self.doc_dict[doc_id])
+       enc_doc_list.append(self.doc_dict[doc_id].get_document())
        print" \'" + word + "\' in document"
-    return idx_list
+    return enc_doc_list
       
     

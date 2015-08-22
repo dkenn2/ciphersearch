@@ -14,7 +14,6 @@ def main(argv):
   print result
 #should get all documents"
   result2 = cc.search_coll(collection,"a")
-  print result2
 if __name__ == "__main__":
   main(sys.argv[1:])
 
