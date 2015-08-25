@@ -24,6 +24,7 @@ class EncryptedDoc:
     return plaintext + padlen*chr(padlen)
   def unpad(self,crypt):
     return crypt[0:-ord(crypt[-1])]
+
   def make_doc_id(self):
     if self.docId is None:
       self.docId = 1
@@ -35,7 +36,6 @@ class EncryptedDoc:
   def encrypt(self, key,plaintext):
     #iv should be diff each time we encrypt right?
     iv = urandom(16)
-    #print iv
     plaintext = self.pad_plain(plaintext)
     AESObj = AES.new(key, AES.MODE_CBC, iv)
     self.cryptdoc = base64.b64encode(iv + AESObj.encrypt(plaintext))    
@@ -75,7 +75,6 @@ class DocIndex:
     self.docId = cryptdoc.get_doc_id()
     self.cryptDoc = cryptdoc
     self.index = None
-    self.secureIndex = self.make_index()
   def get_doc_id(self):
     return self.cryptDoc.get_doc_id()
 

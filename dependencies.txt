@@ -1,0 +1,10 @@
+pybloom 1.1
+https://pypi.python.org/pypi/pybloom/1.0.2
+
+pbkdf2 1.3
+https://pypi.python.org/pypi/pbkdf2
+
+pybloom depends upon:
+
+bitarray 0.8.1
+https://pypi.python.org/pypi/bitarray/

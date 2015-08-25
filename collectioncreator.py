@@ -1,12 +1,22 @@
 import hashlib, os
+from pbkdf2 import PBKDF2
 from documents import EncryptedDoc, DocIndex
 
 class CollectionCreator(object):
 
   def __init__(self):
     self.next_collection_id = 1
+#fix this.  but the salt needs to be stored with the class
+#if the class is stored.  or maybe should store salt in file?
+#figure this out. 
+    self.salt = os.urandom(8)
 #CHANGE THESE EVENTUALLY TO SAFELY LOOK UP KEYS
-    self.ind_key = ("abcd","edfg","aaaa")
+#maybe refactor and move this to open private key file
+#every time we build index to slow down and also lessen
+#the time that the key is in memory.  But then lengthen
+#time password in memory to runtime duration bc we dont
+#ask for a password each time it needs to do something.
+    self.ind_key = self.load_master_key_from_file("Password from user")
     self.enc_key = hashlib.sha256("12345").digest()
     self.bf_size = 0
 
@@ -16,7 +26,14 @@ class CollectionCreator(object):
                         for word in document.lower().split()
                       ]))
 
-     
+#actually this will be very different bc only storing the master key
+#and generating these keys from the master key. 
+  def load_master_key_from_file(self, password):
+#this code adapted from pbkdf2 documentation
+    key = PBKDF2(password, self.salt).read(32)
+#DUMMY: CHANGE TO WORK WITH CODE LINE(S) ABOVE
+    return  ("abcdiaa","edfaaaag","aaaafffffff")
+
   def calc_bf_size(self,doc_root):
     """Will calculate a size to make the bloom filter for
        each document.  The size of each bloom filter in the
@@ -76,6 +93,8 @@ class DocCollection(object):
     self.doc_dict = {}
 
   def add_doc(self, secure_index):
+#this line means that a document identifier is per collection, ie a
+#doc would have two different ids in two diff collections
     self.doc_count += 1
     self.doc_dict[self.doc_count] = secure_index
     print "Finished creating index for document ", self.doc_count
