@@ -12,10 +12,17 @@ class EncryptedDoc:
 
 #NEED to have a different IV for each encrypted doc
     self.encrypt(key, plaindoc)
-#this allows us to test whether docID equals None so that we can set this
-#variable only once
-    self.docId = None
-    self.make_doc_id()
+    self.doc_id = None
+
+  def set_doc_id(self, doc_count):
+    """An EncryptedDoc is given a unique id within a collection and
+    this id is set when it is added to the collection.  If it is None
+    when added to a collection, it has not previously been in a collection.
+    If the document is being added to a new collection, its id in the old
+    collection will be overwritten by its id in the new collection"""
+    self.doc_id = doc_count
+  def get_doc_id(self):
+    return self.doc_id
 #make sure you don't accidentally store the plaintext in an instance variable
 #keep it like you do it in the self.cryptdoc line (padplain in nested function call)
 #uses PKCS7
@@ -24,14 +31,7 @@ class EncryptedDoc:
     return plaintext + padlen*chr(padlen)
   def unpad(self,crypt):
     return crypt[0:-ord(crypt[-1])]
-
-  def make_doc_id(self):
-    if self.docId is None:
-      self.docId = 1
     
-  def get_doc_id(self):
-    return self.docId
-
 #this is a wrapper for the pycrypto encryption function
   def encrypt(self, key,plaintext):
     #iv should be diff each time we encrypt right?
@@ -72,12 +72,18 @@ class DocIndex:
 
 
 #fix this to make it safe
-    self.docId = cryptdoc.get_doc_id()
     self.cryptDoc = cryptdoc
     self.index = None
-  def get_doc_id(self):
-    return self.cryptDoc.get_doc_id()
 
+  def set_doc_id(self, doc_id):
+    try:
+      self.cryptDoc.set_doc_id(doc_id)
+    except:
+      print "self.cryptdoc should never be None"
+      sys.exit(1)
+  def get_doc_id(self):
+    """This can return None what do i want to do about this?"""
+    return self.cryptDoc.get_doc_id()
 #add some logic later so only gives you doc if you should get it?  or
 #does it not matter bc its encrypted?
   def get_document(self):
@@ -104,13 +110,11 @@ class DocIndex:
 #dont want to store the keys nor the word list in the index, only use them 
 #to create the indexi
   def build_index(self, privKeysTup, doc_word_list, length):
-#can not be a member var, also can't in clude word count
 
-
-
+    
+    doc_identifier = self.get_doc_id()
     self.index = BloomFilter(capacity=length, error_rate=0.001) 
     hmacs_rnd1 = [hmac.new(key, '', hashlib.sha1) for key in privKeysTup]
-    doc_identifier = self.get_doc_id()
  
     for word in doc_word_list:
       trpdrs = self._create_trapdoor(hmacs_rnd1, word)
@@ -130,6 +134,7 @@ class DocIndex:
     else:
       for word in codewords:
         self.index.add(word)
+  
   
   def search_index(self, word, privKeysTup):
     hmacs_rnd1 = [hmac.new(key, '', hashlib.sha1) for key in privKeysTup]

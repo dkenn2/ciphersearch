@@ -15,8 +15,7 @@ class CollectionCreator(object):
 #the time that the key is in memory.  But then lengthen
 #time password in memory to runtime duration bc we dont
 #ask for a password each time it needs to do something.
-    self.ind_key = self.create_or_load_keys(32, 3,password)
-#    self.ind_key = self.load_master_key_from_file(password)
+    self.ind_key = self.create_or_load_keys(32, 10,password)
     self.bf_size = 0
    
   def make_word_set(self, document):
@@ -27,19 +26,19 @@ class CollectionCreator(object):
 
   def create_or_load_keys(self, keylen, num_keys, pw):
    
-    user_keys = () 
-    pw_hash = crypt(pw)
+    user_keys = [] 
     rand_filename = hashlib.sha224(pw).hexdigest()
 
     if self.user_keys_exist(rand_filename):
-      print "WORKING RIGHT"
+      print "Loading already existing keys for this user"
       user_keys = self.load_master_key_from_file(rand_filename)    
+
     else:
+      print "Creating ", num_keys, " keys from this user's password and saving keys to a file"
       user_keys = self.create_user_keys(num_keys,pw,keylen) 
       os.mkdir(rand_filename) 
       with open(os.path.join(rand_filename,"keys"),'wb') as key_file:
         key_file.write("\n".join("{}".format(k) for k in user_keys))
-      print "USER_KEYS", user_keys
 
     return tuple(user_keys)
  
@@ -62,8 +61,6 @@ class CollectionCreator(object):
     return index_keys 
    
 
-  def login_user(password):
-    pass  
 
   
 #actually this will be very different bc only storing the master key
@@ -86,11 +83,12 @@ class CollectionCreator(object):
     dir =  src_dir + "/"
     most_bytes = 0;
     for file in os.listdir(dir):
-      len = os.path.getsize(dir + file)
-      if len > most_bytes:
-        most_bytes = len
-
-    return most_bytes / 8 
+      length = os.path.getsize(dir + file)
+      if length > most_bytes:
+        most_bytes = length
+    num_keys = len(self.ind_key)
+    
+    return (most_bytes * max(1,(num_keys / 3))) / 8 
 
   def parse_directory(self, doc_root):
     print "Now building secure indexes for documents in .\\" + doc_root
@@ -108,8 +106,13 @@ class CollectionCreator(object):
         idx = DocIndex(e_doc)
         doc_word_list = self.make_word_set(doc)
 
-        idx.build_index(self.ind_key,doc_word_list, self.bf_size)
+#If the order of the following two lines of code was reversed, this
+#program would not work.  That is because a document only has an identifier
+#relative to the collection it was most recently added to, and an index
+#can not be built without a doc identifier
         collection.add_doc(idx)
+        idx.build_index(self.ind_key,doc_word_list, self.bf_size)
+
     return collection  
 
 #pass collection to this class from main because this class
@@ -140,8 +143,8 @@ class DocCollection(object):
 #this line means that a document identifier is per collection, ie a
 #doc would have two different ids in two diff collections
     self.doc_count += 1
+    secure_index.set_doc_id(self.doc_count)
     self.doc_dict[self.doc_count] = secure_index
-    print "Finished creating index for document ", self.doc_count
 
   def search_collection(self, word, privkeys):
     enc_doc_list = []
