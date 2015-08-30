@@ -1,45 +1,89 @@
 import hashlib, os
-from pbkdf2 import PBKDF2
+from pbkdf2 import PBKDF2, crypt
 from documents import EncryptedDoc, DocIndex
 
 class CollectionCreator(object):
 
-  def __init__(self):
+  def __init__(self,  password):
     self.next_collection_id = 1
-#fix this.  but the salt needs to be stored with the class
-#if the class is stored.  or maybe should store salt in file?
-#figure this out. 
-    self.salt = os.urandom(8)
+
+
+    self.enc_key = hashlib.sha256(password).digest()
 #CHANGE THESE EVENTUALLY TO SAFELY LOOK UP KEYS
 #maybe refactor and move this to open private key file
 #every time we build index to slow down and also lessen
 #the time that the key is in memory.  But then lengthen
 #time password in memory to runtime duration bc we dont
 #ask for a password each time it needs to do something.
-    self.ind_key = self.load_master_key_from_file("Password from user")
-    self.enc_key = hashlib.sha256("12345").digest()
+    self.ind_key = self.create_or_load_keys(32, 3,password)
+#    self.ind_key = self.load_master_key_from_file(password)
     self.bf_size = 0
-
+   
   def make_word_set(self, document):
     return list(set( [
                         word.strip(" \n\t\".,")
                         for word in document.lower().split()
                       ]))
 
+  def create_or_load_keys(self, keylen, num_keys, pw):
+   
+    user_keys = () 
+    pw_hash = crypt(pw)
+    rand_filename = hashlib.sha224(pw).hexdigest()
+
+    if self.user_keys_exist(rand_filename):
+      print "WORKING RIGHT"
+      user_keys = self.load_master_key_from_file(rand_filename)    
+    else:
+      user_keys = self.create_user_keys(num_keys,pw,keylen) 
+      os.mkdir(rand_filename) 
+      with open(os.path.join(rand_filename,"keys"),'wb') as key_file:
+        key_file.write("\n".join("{}".format(k) for k in user_keys))
+      print "USER_KEYS", user_keys
+
+    return tuple(user_keys)
+ 
+  def user_keys_exist(self,pw_hash):
+      if os.path.isdir(pw_hash):
+        return True
+      return False
+
+  def create_user_keys(self, num_keys,pw,keylen):
+    pw_hash = crypt(pw)
+    index_keys = []
+   
+    for i in range(num_keys):
+      this_iter_salt = os.urandom(8)
+      this_iter_key = PBKDF2(pw, this_iter_salt).read(keylen)  
+      index_keys.append(this_iter_key)
+
+
+
+    return index_keys 
+   
+
+  def login_user(password):
+    pass  
+
+  
 #actually this will be very different bc only storing the master key
 #and generating these keys from the master key. 
-  def load_master_key_from_file(self, password):
+  def load_master_key_from_file(self, random_filename):
 #this code adapted from pbkdf2 documentation
-    key = PBKDF2(password, self.salt).read(32)
+#    key = PBKDF2(password, self.salt).read(32)
 #DUMMY: CHANGE TO WORK WITH CODE LINE(S) ABOVE
-    return  ("abcdiaa","edfaaaag","aaaafffffff")
+    with open(os.path.join(random_filename,"keys")) as key_file:
+      master_keys = key_file.readlines()
 
-  def calc_bf_size(self,doc_root):
+    print "KEYS", master_keys
+    return master_keys
+
+  def calc_bf_size(self,src_dir):
     """Will calculate a size to make the bloom filter for
        each document.  The size of each bloom filter in the
        collection is the number of bits needed to easily accomodate 
        the document in the collection with the most words"""
-    dir = doc_root + "/"
+    dir =  src_dir + "/"
     most_bytes = 0;
     for file in os.listdir(dir):
       len = os.path.getsize(dir + file)
