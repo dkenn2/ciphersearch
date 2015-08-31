@@ -5,7 +5,7 @@
 # Please see the file LICENSE in the source
 # distribution of this sotware for license terms.
 
-import hashlib, os
+import hashlib, os, random
 from binascii import hexlify, unhexlify
 from pbkdf2 import PBKDF2, crypt
 from documents import EncryptedDoc, DocIndex
@@ -129,7 +129,7 @@ class CollectionCreator(object):
         idx.build_index(self.ind_key,doc_word_list, self.bf_size)
     print "WORD COUNTS ARRAY:", doc_word_counts
     for i in range(1, collection.collection_size()+1):
-      collection.get_doc(i).blind_index(max_words_any_doc - doc_word_counts[i-1]) 
+      collection.get_doc(i).blind_index(self.ind_key,max_words_any_doc - doc_word_counts[i-1]) 
     return collection  
 
 #pass collection to this class from main because this class

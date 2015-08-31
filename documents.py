@@ -9,7 +9,7 @@
 from Crypto.Cipher import AES
 from pybloom import BloomFilter
 from os import urandom
-import hashlib, hmac, base64
+import hashlib, hmac, base64,random,string
 #constructor takes as argument an unencrypted document, encrypts and 
 #stores it in the object and generates a unique document ID.  It also
 #takes as argument the user's password and translates this into a symmetric
@@ -157,6 +157,19 @@ class DocIndex:
     codewrds = [obj.hexdigest() for obj in updated_copies_rnd2]
     return all([(wrd in self.index) for wrd in codewrds])
 
-  def blind_index(self, num_words_to_enter):
-    print "Blinding index with ", num_words_to_enter, " words\m" 
+  def blind_index(self, privKeysTup, num_words_to_enter):
+    print "Blinding index with ", num_words_to_enter, " words\m"
+   
+    doc_identifier = self.get_doc_id()
+    hmacs_rnd1 = [hmac.new(key, '', hashlib.sha1) for key in privKeysTup]
+    word_size = 10
+    for i in range(num_words_to_enter):
+#following line adapted from stackexchange answer
+      rnd_wrd = ''.join(random.SystemRandom().choice(string.ascii_lowercase) for _ in range(word_size))
+      if i == 10:
+        print "!))",rnd_wrd
+      trpdrs = self._create_trapdoor(hmacs_rnd1, rnd_wrd)
+      codewrds = self._create_codeword(trpdrs, doc_identifier)
+      self.add_word_to_index(codewrds)    
+ 
 
