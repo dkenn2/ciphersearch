@@ -139,7 +139,20 @@ class CollectionCreator(object):
       encrypted_list = collection.search_collection(word, self.ind_key)
       for document in encrypted_list:
         plaintext_list.append(document.decrypt_and_return(self.enc_key))
+#Uncomment following line to test that filter false positives works right
+      plaintext_list.append("WAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+      plaintext_list = self.filter_false_positives(plaintext_list, word)
       return plaintext_list
+
+  def filter_false_positives(self, documents, searchword):
+    filtered_doc_list = []
+    for doc in documents:
+      if searchword in doc:
+        print "HHHHHHHHHHHHHHHHHHHHHHH"
+        filtered_doc_list.append(doc)
+      else:
+        print "FOUND A FALSE POSITIVE", doc
+    return filtered_doc_list
 #DOES THIS CLASS NEED TO KNOW ANYTHING ELSE TO SEARCH BLOOM FILTER?
 #I DONT THINK SO BUT
 class DocCollection(object):
