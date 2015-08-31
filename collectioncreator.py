@@ -1,4 +1,5 @@
 import hashlib, os
+from binascii import hexlify, unhexlify
 from pbkdf2 import PBKDF2, crypt
 from documents import EncryptedDoc, DocIndex
 
@@ -9,13 +10,7 @@ class CollectionCreator(object):
 
 
     self.enc_key = hashlib.sha256(password).digest()
-#CHANGE THESE EVENTUALLY TO SAFELY LOOK UP KEYS
-#maybe refactor and move this to open private key file
-#every time we build index to slow down and also lessen
-#the time that the key is in memory.  But then lengthen
-#time password in memory to runtime duration bc we dont
-#ask for a password each time it needs to do something.
-    self.ind_key = self.create_or_load_keys(32, 10,password)
+    self.ind_key = self.create_or_load_keys(32, 5,password)
     self.bf_size = 0
    
   def make_word_set(self, document):
@@ -37,8 +32,9 @@ class CollectionCreator(object):
       print "Creating ", num_keys, " keys from this user's password and saving keys to a file"
       user_keys = self.create_user_keys(num_keys,pw,keylen) 
       os.mkdir(rand_filename) 
-      with open(os.path.join(rand_filename,"keys"),'wb') as key_file:
-        key_file.write("\n".join("{}".format(k) for k in user_keys))
+      with open(os.path.join(rand_filename,"keys"),'w') as key_file:
+        for k in user_keys:
+          key_file.write(hexlify(k) + "\n")
 
     return tuple(user_keys)
  
@@ -48,16 +44,19 @@ class CollectionCreator(object):
       return False
 
   def create_user_keys(self, num_keys,pw,keylen):
-    pw_hash = crypt(pw)
+#    pw_hash = crypt(pw)
     index_keys = []
    
     for i in range(num_keys):
       this_iter_salt = os.urandom(8)
       this_iter_key = PBKDF2(pw, this_iter_salt).read(keylen)  
+##      print "^^^^ ", len(this_iter_key), this_iter_key
+     
       index_keys.append(this_iter_key)
+       
 
 
-
+    print "ORIGINAL KEYS", index_keys
     return index_keys 
    
 
@@ -69,10 +68,11 @@ class CollectionCreator(object):
 #this code adapted from pbkdf2 documentation
 #    key = PBKDF2(password, self.salt).read(32)
 #DUMMY: CHANGE TO WORK WITH CODE LINE(S) ABOVE
-    with open(os.path.join(random_filename,"keys")) as key_file:
-      master_keys = key_file.readlines()
-
-    print "KEYS", master_keys
+    master_keys = []
+    with open(os.path.join(random_filename,"keys"), 'r') as key_file:
+      for key in key_file:
+        master_keys.append(unhexlify(key.rstrip()))    
+    print "KEYS ON FILE", master_keys
     return master_keys
 
   def calc_bf_size(self,src_dir):
