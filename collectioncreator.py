@@ -1,3 +1,10 @@
+# Copyright 2015 David Kennedy
+# Project name: ciphersearch
+# Project url: https://github.com/dkenn2/ciphersearch
+# [This program is licensed under the "MIT License"]
+# Please see the file LICENSE in the source
+# distribution of this sotware for license terms.
+
 import hashlib, os
 from binascii import hexlify, unhexlify
 from pbkdf2 import PBKDF2, crypt
@@ -98,6 +105,11 @@ class CollectionCreator(object):
     collection = DocCollection(self.next_collection_id)
 #what if collection creation fails? put this in a finally type thing?
 
+    max_words_any_doc = 0
+#used to keep track of the number of words in each document locally for
+#later processing while blinding the index without storing this information
+#with the index
+    doc_word_counts = []
     for filename in os.listdir(doc_root):
       with open(doc_root + "/" + filename,"r") as file:
 
@@ -105,14 +117,19 @@ class CollectionCreator(object):
         e_doc = EncryptedDoc(self.enc_key,doc)
         idx = DocIndex(e_doc)
         doc_word_list = self.make_word_set(doc)
-
+        max_words_any_doc = max(len(doc_word_list), max_words_any_doc)
+        doc_word_counts.append(len(doc_word_list))
+        print "DOC LENGTH IS ", len(doc_word_list), " words"
+        print max_words_any_doc, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 #If the order of the following two lines of code was reversed, this
 #program would not work.  That is because a document only has an identifier
 #relative to the collection it was most recently added to, and an index
 #can not be built without a doc identifier
         collection.add_doc(idx)
         idx.build_index(self.ind_key,doc_word_list, self.bf_size)
-
+    print "WORD COUNTS ARRAY:", doc_word_counts
+    for i in range(1, collection.collection_size()+1):
+      collection.get_doc(i).blind_index(max_words_any_doc - doc_word_counts[i-1]) 
     return collection  
 
 #pass collection to this class from main because this class
@@ -145,6 +162,13 @@ class DocCollection(object):
     self.doc_count += 1
     secure_index.set_doc_id(self.doc_count)
     self.doc_dict[self.doc_count] = secure_index
+
+  def get_doc(self, doc_id):
+   
+    return self.doc_dict[doc_id]
+
+  def collection_size(self):
+    return self.doc_count
 
   def search_collection(self, word, privkeys):
     enc_doc_list = []

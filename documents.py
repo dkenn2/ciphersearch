@@ -1,3 +1,11 @@
+# Copyright 2015 David Kennedy
+# Project name: ciphersearch
+# Project url: https://github.com/dkenn2/ciphersearch
+# [This program is licensed under the "MIT License"]
+# Please see the file LICENSE in the source
+# distribution of this sotware for license terms.
+
+
 from Crypto.Cipher import AES
 from pybloom import BloomFilter
 from os import urandom
@@ -115,6 +123,7 @@ class DocIndex:
     doc_identifier = self.get_doc_id()
     self.index = BloomFilter(capacity=length, error_rate=0.001) 
     hmacs_rnd1 = [hmac.new(key, '', hashlib.sha1) for key in privKeysTup]
+
  
     for word in doc_word_list:
       trpdrs = self._create_trapdoor(hmacs_rnd1, word)
@@ -148,7 +157,6 @@ class DocIndex:
     codewrds = [obj.hexdigest() for obj in updated_copies_rnd2]
     return all([(wrd in self.index) for wrd in codewrds])
 
-  def make_index(self):
-    return 1
-
+  def blind_index(self, num_words_to_enter):
+    print "Blinding index with ", num_words_to_enter, " words\m" 
 
